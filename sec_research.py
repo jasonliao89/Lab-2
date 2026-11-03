@@ -113,13 +113,24 @@ def index_files(client: EdgarClient, cik: str, filing: dict[str, str]) -> list[s
 
 
 def document_name(client: EdgarClient, cik: str, filing: dict[str, str]) -> str:
-    """Return the Exhibit 99.1 filename for an Item 2.02 8-K."""
+    """Return the earnings-release exhibit filename for an Item 2.02 8-K."""
     if filing["form"] != "8-K":
         return filing["primaryDocument"]
+    index_url = archive_base(cik, filing["accessionNumber"]) + "/" + filing["accessionNumber"] + "-index.html"
+    index = BeautifulSoup(client.get_text(index_url), "html.parser")
+    # The SEC filing index identifies the exhibit even when its filename does
+    # not contain "ex99.1" (some issuers label the release simply EX-99).
+    for row in index.select("tr"):
+        if re.search(r"\bEX[- ]?99(?:\.1)?\b", row.get_text(" ", strip=True), re.I):
+            for link in row.select("a[href]"):
+                name = link["href"].rsplit("/", 1)[-1]
+                if name.lower().endswith((".htm", ".html", ".txt")):
+                    return name
     files = index_files(client, cik, filing)
-    exhibit = next((f for f in files if re.search(r"ex[-_]?99[._-]?1", f, re.I) and f.lower().endswith((".htm", ".html", ".txt"))), None)
+    exhibit = next((f for f in files if re.search(r"(?:ex[-_]?99[._-]?1|press.?release)", f, re.I)
+                    and f.lower().endswith((".htm", ".html", ".txt"))), None)
     if not exhibit:
-        raise LookupError("The Item 2.02 8-K does not have an Exhibit 99.1 HTML/text file.")
+        raise LookupError("The Item 2.02 8-K does not have an identifiable earnings-release exhibit.")
     return exhibit
 
 
@@ -187,7 +198,30 @@ def company_facts(client: EdgarClient, cik: str) -> dict[str, Any]:
     return client.get_json(f"{DATA_ROOT}/api/xbrl/companyfacts/CIK{cik}.json")
 
 
-def collect_facts(payload: dict[str, Any]) -> tuple[int, str, str | None, dict[str, dict[str, Any] | None]]:
+def capital_expenditure_fallback(text: str, filing: dict[str, str], current_end: str, prior_end: str | None) -> dict[str, Any] | None:
+    """Use an explicit 10-K capital-expenditures disclosure only when XBRL lacks capex."""
+    pattern = re.compile(
+        r"capital expenditures in \d{4} and \d{4} totaled \$?([\d,.]+)\s+(million|billion)\s+and\s+\$?([\d,.]+)\s+\2",
+        re.I,
+    )
+    for line_no, line in enumerate(text.splitlines(), 1):
+        match = pattern.search(line)
+        if not match:
+            continue
+        multiplier = 1_000_000 if match.group(2).lower() == "million" else 1_000_000_000
+        def record(value: str, end: str | None) -> dict[str, Any] | None:
+            if not end:
+                return None
+            return {"val": float(value.replace(",", "")) * multiplier, "end": end,
+                    "filed": filing["filingDate"], "form": filing["form"], "accn": filing["accessionNumber"],
+                    "fy": None, "fp": "FY", "unit": "USD", "source_line": f"10-K L{line_no}"}
+        return {"tag": "Filing text: Capital expenditures", "current": record(match.group(1), current_end),
+                "prior": record(match.group(3), prior_end)}
+    return None
+
+
+def collect_facts(payload: dict[str, Any], filing_text: str | None = None,
+                  filing: dict[str, str] | None = None) -> tuple[int, str, str | None, dict[str, dict[str, Any] | None]]:
     revenue_tag, revenue_rows = choose_concept(payload, CONCEPTS["Total revenue"])
     if not revenue_tag:
         raise LookupError("No annual revenue concept was found in company facts.")
@@ -207,6 +241,11 @@ def collect_facts(payload: dict[str, Any]) -> tuple[int, str, str | None, dict[s
                     key = "current" if record["end"] == current_end else "prior"
                     values[key] = {k: record.get(k) for k in ("val", "end", "filed", "form", "accn", "fy", "fp")}
         output[label] = values
+    capex = output["Additions to property and equipment"]
+    if filing_text and filing and not (capex and capex.get("current")):
+        fallback = capital_expenditure_fallback(filing_text, filing, current_end, prior_end)
+        if fallback:
+            output["Additions to property and equipment"] = fallback
     return year, current_end, prior_end, output
 
 
@@ -279,7 +318,8 @@ def print_facts(year: int, current_end: str, prior_end: str | None, facts: dict[
         for which in ("current", "prior"):
             value = data.get(which)
             if value:
-                print(f"  {label} [{which}] - {data['tag']}: {value['val']} | end {value['end']} | filed {value['filed']} | {value['form']} {value['accn']}")
+                extra = (f" | unit {value['unit']}" if value.get("unit") else "") + (f" | {value['source_line']}" if value.get("source_line") else "")
+                print(f"  {label} [{which}] - {data['tag']}: {value['val']} | end {value['end']} | filed {value['filed']} | {value['form']} {value['accn']}{extra}")
             else:
                 print(f"  {label} [{which}] - {data['tag']}: unavailable")
 
@@ -290,9 +330,18 @@ def output_directory(name: str) -> Path:
     return Path("research_output") / f"{safe}_{stamp}"
 
 
+def price_details(price: float | None) -> dict[str, Any]:
+    """Attach optional, user-supplied price provenance without issuer-specific logic."""
+    return {
+        "price": price,
+        "date": os.getenv("PRICE_DATE", "not supplied"),
+        "source": os.getenv("PRICE_SOURCE", "--price argument"),
+    }
+
+
 def save_facts(destination: Path, issuer: dict[str, str], year: int, current_end: str, prior_end: str | None,
                facts: dict[str, dict[str, Any] | None],
-               peers: dict[str, dict[str, Any]]) -> Path:
+               peers: dict[str, dict[str, Any]], price: dict[str, Any]) -> Path:
     """Keep primary and peer XBRL selections together with the filing texts."""
     destination.mkdir(parents=True, exist_ok=True)
     target = destination / "facts.json"
@@ -300,6 +349,7 @@ def save_facts(destination: Path, issuer: dict[str, str], year: int, current_end
         "issuer": {"ticker": issuer["ticker"], "cik": issuer["cik"], "fiscal_year": year,
                    "period_end": current_end, "prior_period_end": prior_end, "facts": facts},
         "peers": peers,
+        "price": price,
     }, indent=2), encoding="utf-8")
     return target
 
@@ -369,7 +419,8 @@ REPORT = """You are the Strategy Manager. Use only supplied JSON and return Mark
 
 
 def run_roles(destination: Path, issuer: dict[str, str], filings: dict[str, dict[str, str]], texts: dict[str, str],
-              facts: dict[str, Any], ratios: list[str], release: list[str], peers: dict[str, Any]) -> Path:
+              facts: dict[str, Any], ratios: list[str], release: list[str], peers: dict[str, Any],
+              price: dict[str, Any]) -> Path:
     api_key = os.getenv("API_KEY", "")
     if not api_key.strip():
         raise ValueError("API_KEY is empty. Set it in .env to run the model roles.")
@@ -383,7 +434,8 @@ def run_roles(destination: Path, issuer: dict[str, str], filings: dict[str, dict
             "10-K MD&A": numbered(section(ten_k, r"^item\s+7[.\s:-]+.*(?:management|discussion)", r"^item\s+7a|^item\s+8"), "10-K MD&A"),
             "8-K Exhibit 99.1": numbered(texts["8-K"], "8-K Exhibit 99.1"),
         },
-        "financial_sources": {"facts": facts, "ratios": ratios, "quarter_release_lines": release, "peers": peers},
+        "financial_sources": {"facts": facts, "ratios": ratios, "quarter_release_lines": release,
+                              "peers": peers, "price": price},
     }
     dispatch = call_role(ai, model, "Strategy Manager - dispatch", MANAGER,
                          {"task": "Create research_packet and financial_packet from SEC evidence.", "context": evidence,
@@ -458,6 +510,7 @@ def main() -> None:
     destination = output_directory(issuer["name"])
     texts: dict[str, str] | None = None
     peer_results: dict[str, dict[str, Any]] = {}
+    run_price = price_details(args.price)
     if one_step in (None, 3):
         texts = download_texts(client, issuer["cik"], filings, destination)
         print(f"STEP 3 - saved plain-text filings in {destination.resolve()}")
@@ -468,14 +521,18 @@ def main() -> None:
     prior_end: str | None = None
     facts: dict[str, dict[str, Any] | None] | None = None
     if need_facts:
-        year, current_end, prior_end, facts = collect_facts(company_facts(client, issuer["cik"]))
+        filing_text = texts["10-K"] if texts else None
+        filing = filings["10-K"] if filings else None
+        year, current_end, prior_end, facts = collect_facts(company_facts(client, issuer["cik"]), filing_text, filing)
     if one_step in (None, 4):
-        facts_path = save_facts(destination, issuer, year, current_end, prior_end, facts, peer_results)
+        facts_path = save_facts(destination, issuer, year, current_end, prior_end, facts, peer_results, run_price)
         print("STEP 4 - annual company facts")
         print_facts(year, current_end, prior_end, facts)
         print(f"  Saved {facts_path.resolve()}")
     if one_step in (None, 5):
         print("STEP 5 - calculations")
+        if args.price is not None:
+            print(f"  Price input: USD {args.price:,.2f} | date {run_price['date']} | source {run_price['source']}")
         for line in calculator(facts, args.price): print("  " + line)
     if one_step in (None, 6):
         if texts is None:
@@ -483,7 +540,7 @@ def main() -> None:
             name = document_name(client, issuer["cik"], filings["8-K"])
             texts = {"8-K": html_to_text(client.get_text(archive_base(issuer["cik"], filings["8-K"]["accessionNumber"]) + "/" + name))}
         print("STEP 6 - earnings-release lines")
-        print(f"  Source: 8-K Exhibit 99.1 | accession {filings['8-K']['accessionNumber']}")
+        print(f"  Source: 8-K earnings-release exhibit | accession {filings['8-K']['accessionNumber']}")
         revenue_line, eps_line = release_lines(texts["8-K"])
         print("  Quarterly total revenue: " + revenue_line)
         print("  Diluted EPS: " + eps_line)
@@ -499,12 +556,12 @@ def main() -> None:
             print(f"  {peer['ticker']} | CIK {peer['cik']} | FY {peer_year}")
             print_facts(peer_year, peer_end, peer_prior_end, peer_facts)
             print("  " + ratio("Operating margin", operating, revenue))
-        facts_path = save_facts(destination, issuer, year, current_end, prior_end, facts, peer_results)
+        facts_path = save_facts(destination, issuer, year, current_end, prior_end, facts, peer_results, run_price)
         print(f"  Saved {facts_path.resolve()}")
     # Lab 03 roles are opt-in and can never interrupt a default Lab 02 data run.
     if args.report and one_step is None:
         report_path = run_roles(destination, issuer, filings, texts, facts, calculator(facts, args.price),
-                                release_lines(texts["8-K"]), peer_results)
+                                release_lines(texts["8-K"]), peer_results, run_price)
         print(f"Report saved: {report_path.resolve()}")
 
 
