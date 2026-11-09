@@ -1,0 +1,26 @@
+{
+  "10-K": {
+    "accessionNumber": "0000909832-26-000093",
+    "form": "10-K",
+    "primaryDocument": "cost-20260830.htm",
+    "reportDate": "2026-08-30",
+    "filingDate": "2026-10-07",
+    "items": ""
+  },
+  "10-Q": {
+    "accessionNumber": "0000909832-26-000051",
+    "form": "10-Q",
+    "primaryDocument": "cost-20260510.htm",
+    "reportDate": "2026-05-10",
+    "filingDate": "2026-06-03",
+    "items": ""
+  },
+  "8-K": {
+    "accessionNumber": "0000909832-26-000084",
+    "form": "8-K",
+    "primaryDocument": "cost-20260924.htm",
+    "reportDate": "2026-09-24",
+    "filingDate": "2026-09-24",
+    "items": "2.02,9.01"
+  }
+}
