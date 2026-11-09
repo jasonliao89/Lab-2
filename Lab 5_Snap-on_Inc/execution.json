@@ -1,0 +1,28 @@
+{
+  "order": [
+    {
+      "node": "Steps",
+      "attempt": 1,
+      "status": "started"
+    },
+    {
+      "node": "Steps",
+      "attempt": 1,
+      "status": "completed"
+    },
+    {
+      "node": "Research Analyst",
+      "attempt": 1,
+      "status": "started"
+    },
+    {
+      "node": "Research Analyst",
+      "attempt": 1,
+      "status": "failed"
+    }
+  ],
+  "calls": {
+    "Steps": 1,
+    "Research Analyst": 1
+  }
+}

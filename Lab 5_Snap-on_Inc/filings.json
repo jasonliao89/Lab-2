@@ -1,0 +1,26 @@
+{
+  "10-K": {
+    "accessionNumber": "0000091440-26-000045",
+    "form": "10-K",
+    "primaryDocument": "sna-20260103.htm",
+    "reportDate": "2026-01-03",
+    "filingDate": "2026-02-12",
+    "items": ""
+  },
+  "10-Q": {
+    "accessionNumber": "0000091440-26-000172",
+    "form": "10-Q",
+    "primaryDocument": "sna-20261003.htm",
+    "reportDate": "2026-10-03",
+    "filingDate": "2026-10-22",
+    "items": ""
+  },
+  "8-K": {
+    "accessionNumber": "0000091440-26-000169",
+    "form": "8-K",
+    "primaryDocument": "sna-20261022.htm",
+    "reportDate": "2026-10-22",
+    "filingDate": "2026-10-22",
+    "items": "2.02,9.01"
+  }
+}

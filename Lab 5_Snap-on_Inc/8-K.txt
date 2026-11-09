@@ -1,0 +1,76 @@
+sna-20261022
+0000091440
+false
+0000091440
+2026-10-22
+2026-10-22
+UNITED STATES
+SECURITIES AND EXCHANGE COMMISSION
+WASHINGTON, DC 20549
+FORM
+8-K
+CURRENT REPORT
+Pursuant to Section 13 or 15(d) of the
+Securities Exchange Act of 1934
+Date of Report (Date of earliest event reported):
+October 22, 2026
+Snap-on Inc
+orporated
+(Exact name of registrant as specified in its charter)
+Delaware
+001-07724
+39-0622040
+(State or Other Jurisdiction
+of Incorporation)
+(Commission
+File Number)
+(IRS Employer
+Identification No.)
+2801 80th Street,
+Kenosha,
+Wisconsin
+53143-5656
+(Address of Principal Executive Offices, and Zip Code)
+(
+262
+)
+656-5200
+(Registrant’s telephone number, including area code)
+Check the appropriate box below if the Form 8-K filing is intended to simultaneously satisfy the filing obligation of the registrant under any of the following provisions:
+☐
+Written communication pursuant to Rule 425 under the Securities Act (17 CFR 230.425)
+☐
+Soliciting material pursuant to Rule 14a-12 under the Exchange Act (17 CFR 240.14a-12)
+☐
+Pre-commencement communication pursuant to Rule 14d-2(b) under the Exchange Act (17 CFR 240.14d-2(b))
+☐
+Pre-commencement communication pursuant to Rule 13e-4(c) under the Exchange Act (17 CFR 240.13e-4(c))
+Securities registered pursuant to Section 12(b) of the Act:
+Title of each class
+Trading Symbol(s)
+Name of each exchange on which registered
+Common Stock, $1.00 par value
+SNA
+New York Stock Exchange
+Indicate by check mark whether the registrant is an emerging growth company as defined in Rule 405 of the Securities Act of 1933 (17 CFR §230.405 of this chapter) or Rule 12b-2 of the Securities Exchange Act of 1934 (17 CFR §240.12b-2 of this chapter).
+Emerging growth company
+☐
+If an emerging growth company, indicate by check mark if the registrant has elected not to use the extended transition period for complying with any new or revised financial accounting standards provided pursuant to Section 13(a) of the Exchange Act.☐
+Item 2.02
+Results of Operations and Financial Condition
+On October 22, 2026, Snap-on Incorporated (the “Corporation”) issued a press release announcing results for its third quarter ended October 3, 2026. The text of the press release is furnished herewith as Exhibit 99 to this Current Report on Form 8-K.
+The press release contains cautionary statements identifying important factors that could cause actual results of the Corporation to differ materially from those described in any forward-looking statement of the Corporation.
+Item 9.01
+Financial Statements and Exhibits (furnished pursuant to Item 2.02)
+(d) Exhibits
+99
+Press Release of Snap-on Incorporated, dated October 22, 2026
+SIGNATURES
+Pursuant to the requirements of the Securities Exchange Act of 1934, Snap-on Incorporated has duly caused this report to be signed on its behalf by the undersigned hereunto duly authorized.
+SNAP-ON INCORPORATED
+Date: October 22, 2026
+By:
+/s/ Aldo J. Pagliari
+Aldo J. Pagliari, Principal Financial Officer,
+Senior Vice President – Finance and
+Chief Financial Officer
